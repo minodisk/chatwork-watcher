@@ -19,13 +19,29 @@
     }
     this.active = active;
     chrome.browserAction.setIcon({
-      path: 'images/icon19_' + (this.active ? 'alive' : 'dead') + '.png'
+      path: 'images/icon19_' + (!this.status ? 'onffline' : this.active ? 'normal' : 'disconnected') + '.png'
     });
     chrome.browserAction.setBadgeBackgroundColor({
-      color: [0, 0, 0, 10]
+      color: [0xcc, 0xcc, 0xcc, 0xff]
     });
     chrome.browserAction.setBadgeText({
       text: '?'
+    });
+  };
+
+  Icon.prototype.setStatus = function (status) {
+    if (status === this.status) {
+      return
+    }
+    this.status = status;
+    chrome.browserAction.setIcon({
+      path: 'images/icon19_' + (!this.status ? 'onffline' : this.active ? 'normal' : 'disconnected') + '.png'
+    });
+    chrome.browserAction.setBadgeBackgroundColor({
+      color: [0xcc, 0xcc, 0xcc, 0xff]
+    });
+    chrome.browserAction.setBadgeText({
+      text: '!'
     });
   };
 
@@ -87,7 +103,12 @@
 
   Connection.prototype.onMessage = function (msg) {
     console.log('onMessage:', msg);
-    this.icon.setUnread(msg.unread);
+    if (msg.status != null) {
+      this.icon.setStatus(msg.status);
+    }
+    if (msg.unread != null) {
+      this.icon.setUnread(msg.unread);
+    }
   };
 
 
@@ -129,6 +150,7 @@
       if (connection = Connection.getConnection(port.sender.tab.id)) {
         connection.disconnect();
       }
+      console.log(port);
       new Connection(port.sender.tab, port, icon);
     });
 

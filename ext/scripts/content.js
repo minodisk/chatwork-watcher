@@ -9,69 +9,93 @@
     ;
 
 
-  function Connection(port, elem) {
+  function Connection(port, $status, $unread) {
     if (Connection.instance != null) {
       Connection.instance.disconnect();
     }
 
-    this.onChange = __bind(this.onChange, this);
-    this.onDisconnect = __bind(this.onDisconnect, this);
+    this._onDisconnect = __bind(this._onDisconnect, this);
+    this._checkStatus = __bind(this._checkStatus, this);
+    this._onUnreadChange = __bind(this._onUnreadChange, this);
 
-    this.port = port;
-    this.port.onDisconnect.addListener(this.onDisconnect);
+    this._port = port;
+    this._port.onDisconnect.addListener(this._onDisconnect);
 
-    this.elem = elem;
-    this.elem.addEventListener('DOMSubtreeModified', this.onChange);
-    this.onChange();
+    // watch offline notification
+    this._$status = $status;
+    this._statusIntervalId = setInterval(this._checkStatus, 1000);
+    this._checkStatus();
+
+    this._$unread = $unread;
+    this._$unread.addEventListener('DOMSubtreeModified', this._onUnreadChange);
+    this._onUnreadChange();
 
     Connection.instance = this;
   }
 
-  Connection.prototype.onChange = function () {
-    var unread = +this.elem.innerText
-      ;
-    if (isNaN(unread)) {
-      return;
-    }
-    this.port.postMessage({
-      unread: unread
-    });
-  };
+  Connection.prototype._onDisconnect = function () {
+    console.log('_onDisconnect');
 
-  Connection.prototype.onDisconnect = function () {
-    console.log('onDisconnect');
+    this._port.onDisconnect.removeListener(this._onDisconnect);
 
-    this.port.onDisconnect.removeListener(this.onDisconnect);
+    clearInterval(this._statusIntervalId);
+    this._$status = null;
 
-    this.elem.removeEventListener('DOMSubtreeModified', this.onChange);
-    this.elem = null;
+    this._$unread.removeEventListener('DOMSubtreeModified', this._onUnreadChange);
+    this._$unread = null;
 
     Connection.instance = null;
   };
 
+  Connection.prototype._checkStatus = function () {
+    var display = getComputedStyle(this._$status, '').display
+      ;
+    if (display === this._statusDisplay) {
+      return;
+    }
+    this._statusDisplay = display;
+    this._port.postMessage({
+      status: this._statusDisplay !== 'block'
+    });
+  };
+
+  Connection.prototype._onUnreadChange = function () {
+    var unread = +this._$unread.innerText
+      ;
+    if (isNaN(unread)) {
+      return;
+    }
+    this._port.postMessage({
+      unread: unread
+    });
+  };
+
   Connection.prototype.disconnect = function () {
     console.log('disconnect');
-    this.port.disconnect();
+    this._port.disconnect();
   };
 
 
   (function () {
     document.addEventListener('DOMContentLoaded', function () {
-      var port
-        , elem = document.querySelector('#cw_total_unread_room')
+      var connection
+        , port
+        , $unread = document.querySelector('#cw_total_unread_room')
+        , $status = document.querySelector('#cw_offline')
         ;
 
       console.log('connect to background');
       port = chrome.extension.connect({
-        name: 'chatwork-ext'
+        name: 'chatwork-watcher'
       });
-      new Connection(port, elem);
+      connection = new Connection(port, $status, $unread);
 
       chrome.extension.onConnect.addListener(function (port) {
         console.log('connect from background');
-        new Connection(port, elem);
+        connection = new Connection(port, $status, $unread);
       });
     });
+
   })();
 
 })(document, chrome);

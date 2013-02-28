@@ -3,7 +3,7 @@
 
   "name"       : "ChatWork Watcher",
   "description": "ChatWorkの未読件数表示",
-  "version"    : "0.2",
+  "version"    : "0.3",
 
   "permissions": [
     "tabs"
@@ -17,7 +17,7 @@
   },
   "browser_action" : {
     "default_icon" : {
-      "19": "images/icon19_dead.png",
+      "19": "images/icon19_offline.png",
       "38": "images/icon38.png"
     },
     "default_title": "ChatWork Watcher"
